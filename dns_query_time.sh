@@ -17,7 +17,7 @@ RESOLV_CONF_SERVERS=$(grep ^nameserver /etc/resolv.conf | awk '{print $2}')
 SERVERS="$STATIC_SERVERS $RESOLV_CONF_SERVERS"
 
 # Domains to query
-DOMAINS="organisation.vconf.dk videoapi.vconf.dk statusapi.vconf.dk"
+DOMAINS="dr.dk tv2.dk eb.dk"
 
 # Write header if file doesn't exist
 if [ ! -f "$CSV_FILE" ]; then
