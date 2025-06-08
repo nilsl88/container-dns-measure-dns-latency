@@ -1,5 +1,6 @@
 import pandas as pd
 import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
 import base64
 from io import BytesIO
 import sys
@@ -15,29 +16,34 @@ html_path = sys.argv[2]
 df = pd.read_csv(csv_path)
 df['timestamp'] = pd.to_datetime(df['timestamp'])
 
-# Resample to average per minute
-df_resampled = (
-    df.set_index('timestamp')
-      .groupby(['dns_server', 'protocol'])
-      .resample('min')
-      .mean(numeric_only=True)
+# Round timestamps to the nearest minute
+df['minute'] = df['timestamp'].dt.floor('min')
+
+# Average over each minute, dns_server, and protocol
+df_agg = (
+    df.groupby(['minute', 'dns_server', 'protocol'])['query_time_ms']
+      .mean()
       .reset_index()
 )
 
 # Color mapping
 color_map = {
-    ('8.8.8.8', 'udp'): 'black',
-    ('8.8.8.8', 'tcp'): 'grey',
-    ('1.1.1.1', 'udp'): 'brown',
-    ('1.1.1.1', 'tcp'): 'magenta'
+    ('8.8.8.8', 'udp'): 'orange',
+    ('8.8.8.8', 'tcp'): 'red',
+    ('1.1.1.1', 'udp'): 'green',
+    ('1.1.1.1', 'tcp'): 'blue'
 }
 
-# Plot
 fig, ax = plt.subplots(figsize=(12, 7))
-for (dns_server, protocol), group_data in df_resampled.groupby(['dns_server', 'protocol']):
+for (dns_server, protocol), group_data in df_agg.groupby(['dns_server', 'protocol']):
     label = f"{dns_server} ({protocol})"
     color = color_map.get((dns_server, protocol), None)
-    ax.plot(group_data['timestamp'], group_data['query_time_ms'], marker='o', label=label, color=color)
+    ax.plot(group_data['minute'], group_data['query_time_ms'], marker='o', label=label, color=color)
+
+# Format x-axis as "day/month HH:mm"
+ax.xaxis.set_major_formatter(mdates.DateFormatter('%d/%m %H:%M'))
+
+fig.autofmt_xdate()  # Auto-rotate date labels
 
 ax.set_title('DNS Query Time over Time by DNS Server and Protocol (Custom Colors)')
 ax.set_xlabel('Time')
@@ -46,7 +52,7 @@ ax.legend(title='DNS Server (Protocol)', loc='upper right')
 ax.grid(True)
 plt.tight_layout()
 
-# Save the plot as an image and encode it to base64
+# Save the plot as a base64-encoded PNG image
 buffer = BytesIO()
 plt.savefig(buffer, format='png')
 buffer.seek(0)
@@ -71,3 +77,4 @@ with open(html_path, 'w', encoding='utf-8') as f:
     f.write(html_content)
 
 print(f"HTML generated: {html_path}")
+
